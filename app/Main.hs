@@ -7,15 +7,18 @@ import Text.Read
 data UnaryOperation = Increase
                     | Decrease
                     | SquareRoot
-                    -- TODO COS
-                    -- TODO SIN
-                    -- TODO TAN
+                    | Sine
+                    | Cosine
+                    | Tangent
 
 unaryOperation :: UnaryOperation -> Double -> Double
 unaryOperation operation = case operation of
                                    Increase -> (+) 1
                                    Decrease -> (-) 1
                                    SquareRoot -> sqrt -- TODO: Handle negatives
+                                   Sine -> sin
+                                   Cosine -> cos
+                                   Tangent -> tan
 
 data BinaryOperation = Add
                      | Subtract
@@ -90,11 +93,15 @@ parseUserCommand s =
     "inc" -> Just (MutateStack (Calculate (Unary Increase)))
     "dec" -> Just (MutateStack (Calculate (Unary Decrease)))
     "sqrt" -> Just (MutateStack (Calculate (Unary SquareRoot)))
+    "sin" -> Just (MutateStack (Calculate (Unary Sine)))
+    "cos" -> Just (MutateStack (Calculate (Unary Cosine)))
+    "tan" -> Just (MutateStack (Calculate (Unary Tangent)))
     "+" -> Just (MutateStack (Calculate (Binary Add)))
     "-" -> Just (MutateStack (Calculate (Binary Subtract)))
     "*" -> Just (MutateStack (Calculate (Binary Multiply)))
     "/" -> Just (MutateStack (Calculate (Binary Divide)))
     "^" -> Just (MutateStack (Calculate (Binary RaiseToThePower)))
+    "pi" -> Just (MutateStack (Enter pi))
     _ -> do
       number <- readMaybe s
       Just (MutateStack (Enter number))

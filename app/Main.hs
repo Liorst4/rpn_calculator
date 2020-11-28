@@ -6,7 +6,7 @@ import Text.Read
 
 data UnaryOperation = Increase
                     | Decrease
-                    -- TODO SQRT
+                    | SquareRoot
                     -- TODO COS
                     -- TODO SIN
                     -- TODO TAN
@@ -15,6 +15,7 @@ unaryOperation :: UnaryOperation -> Double -> Double
 unaryOperation operation = case operation of
                                    Increase -> (+) 1
                                    Decrease -> (-) 1
+                                   SquareRoot -> sqrt -- TODO: Handle negatives
 
 data BinaryOperation = Add
                      | Subtract
@@ -76,6 +77,7 @@ parseUserCommand s =
     "drop" -> Just (MutateStack Drop)
     "inc" -> Just (MutateStack (Calculate (Unary Increase)))
     "dec" -> Just (MutateStack (Calculate (Unary Decrease)))
+    "sqrt" -> Just (MutateStack (Calculate (Unary SquareRoot)))
     "+" -> Just (MutateStack (Calculate (Binary Add)))
     "-" -> Just (MutateStack (Calculate (Binary Subtract)))
     "*" -> Just (MutateStack (Calculate (Binary Multiply)))

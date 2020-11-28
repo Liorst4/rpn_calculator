@@ -112,7 +112,9 @@ repl s = do
           let newStack = performStackOperation op s
           repl (fromMaybe s newStack)
         Just Exit -> return Nothing
-        _ -> repl s
+        _ -> do
+          putStrLn ("Invalid command: " ++ userInput)
+          repl s
 
 -- TODO Exit codes
 main :: IO ()

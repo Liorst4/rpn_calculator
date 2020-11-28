@@ -21,7 +21,7 @@ data BinaryOperation = Add
                      | Subtract
                      | Multiply
                      | Divide
-                     -- TODO POW
+                     | RaiseToThePower
                      -- TODO LOG
 
 
@@ -31,6 +31,7 @@ binaryOperation operation = case operation of
                                     Subtract -> (-)
                                     Multiply -> (*)
                                     Divide -> (/) -- TODO: Handle 0
+                                    RaiseToThePower -> (**)
 
 data MathOperation = Unary UnaryOperation
                    | Binary BinaryOperation
@@ -93,6 +94,7 @@ parseUserCommand s =
     "-" -> Just (MutateStack (Calculate (Binary Subtract)))
     "*" -> Just (MutateStack (Calculate (Binary Multiply)))
     "/" -> Just (MutateStack (Calculate (Binary Divide)))
+    "^" -> Just (MutateStack (Calculate (Binary RaiseToThePower)))
     _ -> do
       number <- readMaybe s
       Just (MutateStack (Enter number))

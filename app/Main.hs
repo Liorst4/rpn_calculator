@@ -51,9 +51,9 @@ performMathOperation operation s =
 
 data StackOperation = Enter Double
                     | Drop
+                    | Duplicate
                     | Calculate MathOperation
                     -- TODO SWAP
-                    -- TODO DUP
 
 -- TODO Use side effect                   
 performStackOperation :: StackOperation -> Stack Double -> Maybe (Stack Double)
@@ -63,6 +63,9 @@ performStackOperation operation s =
     Drop -> do
       (newStack, _) <- stackPop s
       Just newStack
+    Duplicate -> do
+      (_, topValue) <- stackPop s
+      Just (stackPush s topValue)
     Calculate mathOperation -> performMathOperation mathOperation s
 
 data UserCommand = Exit
@@ -75,6 +78,7 @@ parseUserCommand s =
     "exit" -> Just Exit
     "print" -> Just Print
     "drop" -> Just (MutateStack Drop)
+    "dup" -> Just (MutateStack Duplicate)
     "inc" -> Just (MutateStack (Calculate (Unary Increase)))
     "dec" -> Just (MutateStack (Calculate (Unary Decrease)))
     "sqrt" -> Just (MutateStack (Calculate (Unary SquareRoot)))

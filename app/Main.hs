@@ -1,5 +1,6 @@
 module Main where
 
+import Data.Either
 import Data.Maybe
 import Data.Stack
 import Text.Read
@@ -11,14 +12,19 @@ data UnaryOperation = Increase
                     | Cosine
                     | Tangent
 
-unaryOperation :: UnaryOperation -> Double -> Double
-unaryOperation operation = case operation of
-                                   Increase -> (+) 1
-                                   Decrease -> (-) 1
-                                   SquareRoot -> sqrt -- TODO: Handle negatives
-                                   Sine -> sin
-                                   Cosine -> cos
-                                   Tangent -> tan
+unaryOperation :: UnaryOperation -> Double -> Maybe Double
+unaryOperation safeOperation = case safeOperation of
+                                 Increase -> justWrapper (1 +)
+                                 Decrease -> justWrapper (1 -)
+                                 SquareRoot -> safeSquareRoot
+                                 Sine -> justWrapper sin
+                                 Cosine -> justWrapper cos
+                                 Tangent -> justWrapper tan
+  where
+    justWrapper = fmap Just
+    safeSquareRoot x = if x >= 0
+                       then Just (sqrt x)
+                       else Nothing
 
 data BinaryOperation = Add
                      | Subtract
@@ -28,13 +34,18 @@ data BinaryOperation = Add
                      -- TODO LOG
 
 
-binaryOperation :: BinaryOperation -> Double -> Double -> Double 
-binaryOperation operation = case operation of
-                                    Add -> (+)
-                                    Subtract -> (-)
-                                    Multiply -> (*)
-                                    Divide -> (/) -- TODO: Handle 0
-                                    RaiseToThePower -> (**)
+binaryOperation :: BinaryOperation -> Double -> Double -> Maybe Double
+binaryOperation safeOperation = case safeOperation of
+                                  Add -> justWrapper (+)
+                                  Subtract -> justWrapper (-)
+                                  Multiply -> justWrapper (*)
+                                  Divide -> safeDivide
+                                  RaiseToThePower -> justWrapper (**)
+  where
+    justWrapper f x y = Just (f x y)
+    safeDivide x y = if y /= 0
+                     then Just (x / y)
+                     else Nothing
 
 data MathOperation = Unary UnaryOperation
                    | Binary BinaryOperation
@@ -45,12 +56,12 @@ performMathOperation operation s =
   case operation of
     Unary op -> do
       (newStack, x) <- stackPop s
-      let newX = unaryOperation op x
+      newX <- unaryOperation op x
       Just (stackPush newStack newX)
     Binary op -> do
       (newStack1, y) <- stackPop s
       (newStack2, x) <- stackPop newStack1
-      let newX = binaryOperation op x y
+      newX <- binaryOperation op x y
       Just (stackPush newStack2 newX)
 
 data StackOperation = Enter Double
@@ -59,24 +70,40 @@ data StackOperation = Enter Double
                     | Swap
                     | Calculate MathOperation
 
+data StackOperationError = Underflow
+                         | Undefined
+                         deriving (Show)
+
 -- TODO Use side effect                   
-performStackOperation :: StackOperation -> Stack Double -> Maybe (Stack Double)
+performStackOperation :: StackOperation -> Stack Double -> Either (Stack Double) StackOperationError
 performStackOperation operation s =
   case operation of
-    Enter number -> Just (stackPush s number)
+    Enter number -> Left (stackPush s number)
     Drop -> do
-      (newStack, _) <- stackPop s
-      Just newStack
+      let result = do
+            (newStack, _) <- stackPop s
+            Just newStack
+      unpackResult result Underflow
     Duplicate -> do
-      (_, topValue) <- stackPop s
-      Just (stackPush s topValue)
+      let result = do
+            (_, topValue) <- stackPop s
+            Just (stackPush s topValue)
+      unpackResult result Underflow
     Swap -> do
-      (newStack1, x) <- stackPop s
-      (newStack2, y) <- stackPop newStack1
-      let newStack3 = stackPush newStack2 x
-      let newStack4 = stackPush newStack3 y
-      Just newStack4
-    Calculate mathOperation -> performMathOperation mathOperation s
+      let result = do
+            (newStack1, x) <- stackPop s
+            (newStack2, y) <- stackPop newStack1
+            let newStack3 = stackPush newStack2 x
+            let newStack4 = stackPush newStack3 y
+            Just newStack4
+      unpackResult result Underflow
+    Calculate mathOperation -> do
+      let result = performMathOperation mathOperation s
+      unpackResult result Undefined
+  where
+    unpackResult result error = if isJust result
+                                then Left (fromJust result)
+                                else Right error
 
 data UserCommand = Exit
                  | Print
@@ -117,9 +144,11 @@ repl s = do
         Just Print -> do
           print s -- TODO: Better print
           repl s
-        Just (MutateStack op) -> do
-          let newStack = performStackOperation op s
-          repl (fromMaybe s newStack)
+        Just (MutateStack op) -> case performStackOperation op s of
+          Left newStack -> repl newStack
+          Right error -> do
+            putStrLn ("Error: " ++ show error)
+            repl s
         Just Exit -> return Nothing
         _ -> do
           putStrLn ("Invalid command: " ++ userInput)

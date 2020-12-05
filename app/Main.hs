@@ -102,9 +102,7 @@ performStackOperation operation s =
       unpackResult result Underflow
     Calculate mathOperation -> performMathOperation mathOperation s
   where
-    unpackResult result error = if isJust result
-                                then Left (fromJust result)
-                                else Right error
+    unpackResult result error = maybe (Right error) Left result
 
 data UserCommand = Exit
                  | Print

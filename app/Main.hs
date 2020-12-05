@@ -50,29 +50,32 @@ binaryOperation safeOperation = case safeOperation of
 data MathOperation = Unary UnaryOperation
                    | Binary BinaryOperation
 
+data StackOperationError = Underflow
+                         | Undefined
+                         deriving (Show)
+
 -- TODO Use side effects
-performMathOperation :: MathOperation -> Stack Double -> Maybe (Stack Double)
+performMathOperation :: MathOperation -> Stack Double -> Either (Stack Double) StackOperationError
 performMathOperation operation s =
   case operation of
-    Unary op -> do
-      (newStack, x) <- stackPop s
-      newX <- unaryOperation op x
-      Just (stackPush newStack newX)
-    Binary op -> do
-      (newStack1, y) <- stackPop s
-      (newStack2, x) <- stackPop newStack1
-      newX <- binaryOperation op x y
-      Just (stackPush newStack2 newX)
+    Unary op -> case stackPop s of
+      Just (newStack, x) -> case unaryOperation op x of
+        Just newX -> Left (stackPush newStack newX)
+        _ -> Right Undefined
+      _ -> Right Underflow
+    Binary op -> case stackPop s of
+      Just (newStack1, y) -> case stackPop newStack1 of
+        Just (newStack2, x) -> case binaryOperation op x y of
+          Just newX -> Left (stackPush newStack2 newX)
+          _ -> Right Undefined
+        _ -> Right Underflow
+      _ -> Right Underflow
 
 data StackOperation = Enter Double
                     | Drop
                     | Duplicate
                     | Swap
                     | Calculate MathOperation
-
-data StackOperationError = Underflow
-                         | Undefined
-                         deriving (Show)
 
 -- TODO Use side effect                   
 performStackOperation :: StackOperation -> Stack Double -> Either (Stack Double) StackOperationError
@@ -97,9 +100,7 @@ performStackOperation operation s =
             let newStack4 = stackPush newStack3 y
             Just newStack4
       unpackResult result Underflow
-    Calculate mathOperation -> do
-      let result = performMathOperation mathOperation s
-      unpackResult result Undefined
+    Calculate mathOperation -> performMathOperation mathOperation s
   where
     unpackResult result error = if isJust result
                                 then Left (fromJust result)

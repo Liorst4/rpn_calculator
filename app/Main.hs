@@ -133,26 +133,45 @@ parseUserCommand s =
       number <- readMaybe s
       Just (MutateStack (Enter number))
 
+
+executeWord :: Stack Double -> String -> IO (Maybe (Stack Double))
+executeWord s w = do
+  let userCommand = parseUserCommand w
+  case userCommand of
+    Just Print -> do
+      print s -- TODO: Better print
+      return (Just s)
+    Just (MutateStack op) -> case performStackOperation op s of
+      Left newStack -> return (Just newStack)
+      Right error -> do
+        putStrLn ("Error: " ++ show error)
+        return (Just s)
+    Just Exit -> return Nothing
+    _ -> do
+      putStrLn ("Invalid command: " ++ w)
+      return (Just s)
+
+-- TODO: Use word stack
+executeWords :: Stack Double -> [String] -> IO (Maybe (Stack Double))
+executeWords s w =
+   if null w
+   then return (Just s)
+   else do
+     result <- executeWord s (head w)
+     case result of
+       Just newS -> executeWords newS (tail w)
+       Nothing -> return Nothing
+
 -- TODO: Print prompt
 -- TODO: Use side effects
 repl :: Stack Double -> IO (Maybe (Stack Double))
 repl s = do 
-      userInput <- getLine
-      -- TODO Seperate into words
-      let userCommand = parseUserCommand userInput
-      case userCommand of
-        Just Print -> do
-          print s -- TODO: Better print
-          repl s
-        Just (MutateStack op) -> case performStackOperation op s of
-          Left newStack -> repl newStack
-          Right error -> do
-            putStrLn ("Error: " ++ show error)
-            repl s
-        Just Exit -> return Nothing
-        _ -> do
-          putStrLn ("Invalid command: " ++ userInput)
-          repl s
+      userLine <- getLine
+      let userWords = words userLine
+      result <- executeWords s userWords
+      case result of
+        Just newS -> repl newS
+        Nothing -> return Nothing
 
 -- TODO Exit codes
 main :: IO ()

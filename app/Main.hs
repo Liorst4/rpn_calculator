@@ -151,16 +151,14 @@ executeWord s w = do
       putStrLn ("Invalid command: " ++ w)
       return (Just s)
 
--- TODO: Use word stack
-executeWords :: Stack Double -> [String] -> IO (Maybe (Stack Double))
-executeWords s w =
-   if null w
-   then return (Just s)
-   else do
-     result <- executeWord s (head w)
+executeWords :: Stack Double -> Stack String -> IO (Maybe (Stack Double))
+executeWords s w = case stackPop w of
+  Just (restOfW, headOfW) -> do
+     result <- executeWord s headOfW
      case result of
-       Just newS -> executeWords newS (tail w)
+       Just newS -> executeWords newS restOfW
        Nothing -> return Nothing
+  _ -> return (Just s)
 
 -- TODO: Print prompt
 -- TODO: Use side effects
@@ -168,10 +166,15 @@ repl :: Stack Double -> IO (Maybe (Stack Double))
 repl s = do 
       userLine <- getLine
       let userWords = words userLine
-      result <- executeWords s userWords
+      result <- executeWords s (listToStack userWords)
       case result of
         Just newS -> repl newS
         Nothing -> return Nothing
+  where
+    listToStack l = listToStackInner stackNew (reverse l)
+    listToStackInner s l = if null l
+      then s
+      else listToStackInner (stackPush s (head l)) (tail l)
 
 -- TODO Exit codes
 main :: IO ()

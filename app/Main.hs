@@ -3,6 +3,7 @@ module Main where
 import Data.Either
 import Data.Maybe
 import Data.Stack
+import System.IO
 import Text.Read
 
 data UnaryOperation = Increase
@@ -143,11 +144,11 @@ executeWord s w = do
     Just (MutateStack op) -> case performStackOperation op s of
       Left newStack -> return (Just newStack)
       Right error -> do
-        putStrLn ("Error: " ++ show error)
+        hPutStrLn stderr ("Error: " ++ show error)
         return (Just s)
     Just Exit -> return Nothing
     _ -> do
-      putStrLn ("Invalid command: " ++ w)
+      hPutStrLn stderr ("Invalid command: " ++ w)
       return (Just s)
 
 executeWords :: Stack Double -> Stack String -> IO (Maybe (Stack Double))

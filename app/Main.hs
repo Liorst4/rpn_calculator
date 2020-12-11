@@ -142,6 +142,5 @@ repl s = do
 main :: IO ()
 main = do
   hPutStrLn stderr "Welcome to the RPN calculator\nTo learn how to use PRN read https://en.wikipedia.org/wiki/Reverse_Polish_notation"
-  let numberStack = stackNew
-  repl numberStack
+  repl stackNew
   return ()

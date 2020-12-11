@@ -6,77 +6,16 @@ import Data.Stack
 import System.IO
 import Text.Read
 
-data UnaryOperation = Increase
-                    | Decrease
-                    | SquareRoot
-                    | Sine
-                    | Cosine
-                    | Tangent
-
-unaryOperation :: UnaryOperation -> Double -> Maybe Double
-unaryOperation safeOperation = case safeOperation of
-                                 Increase -> justWrapper (1 +)
-                                 Decrease -> justWrapper (1 -)
-                                 SquareRoot -> safeSquareRoot
-                                 Sine -> justWrapper sin
-                                 Cosine -> justWrapper cos
-                                 Tangent -> justWrapper tan
-  where
-    justWrapper = fmap Just
-    safeSquareRoot x = if x >= 0
-                       then Just (sqrt x)
-                       else Nothing
-
-data BinaryOperation = Add
-                     | Subtract
-                     | Multiply
-                     | Divide
-                     | RaiseToThePower
-                     -- TODO LOG
-
-
-binaryOperation :: BinaryOperation -> Double -> Double -> Maybe Double
-binaryOperation safeOperation = case safeOperation of
-                                  Add -> justWrapper (+)
-                                  Subtract -> justWrapper (-)
-                                  Multiply -> justWrapper (*)
-                                  Divide -> safeDivide
-                                  RaiseToThePower -> justWrapper (**)
-  where
-    justWrapper f x y = Just (f x y)
-    safeDivide x y = if y /= 0
-                     then Just (x / y)
-                     else Nothing
-
-data MathOperation = Unary UnaryOperation
-                   | Binary BinaryOperation
-
-data StackOperationError = Underflow
-                         | Undefined
-                         deriving (Show)
-
--- TODO Use side effects
-performMathOperation :: MathOperation -> Stack Double -> Either (Stack Double) StackOperationError
-performMathOperation operation s =
-  case operation of
-    Unary op -> case stackPop s of
-      Just (newStack, x) -> case unaryOperation op x of
-        Just newX -> Left (stackPush newStack newX)
-        _ -> Right Undefined
-      _ -> Right Underflow
-    Binary op -> case stackPop s of
-      Just (newStack1, y) -> case stackPop newStack1 of
-        Just (newStack2, x) -> case binaryOperation op x y of
-          Just newX -> Left (stackPush newStack2 newX)
-          _ -> Right Undefined
-        _ -> Right Underflow
-      _ -> Right Underflow
-
 data StackOperation = Enter Double
                     | Drop
                     | Duplicate
                     | Swap
-                    | Calculate MathOperation
+                    | UnaryOperation (Double -> Maybe Double)
+                    | BinaryOperation (Double -> Double -> Maybe Double)
+
+data StackOperationError = Underflow
+                         | Undefined
+                         deriving (Show)
 
 -- TODO Use side effect                   
 performStackOperation :: StackOperation -> Stack Double -> Either (Stack Double) StackOperationError
@@ -101,7 +40,18 @@ performStackOperation operation s =
             let newStack4 = stackPush newStack3 y
             Just newStack4
       unpackResult result Underflow
-    Calculate mathOperation -> performMathOperation mathOperation s
+    UnaryOperation op -> case stackPop s of
+      Just (newStack1, x) -> case op x of
+        Just newX -> Left (stackPush newStack1 newX)
+        _ -> Right Undefined
+      _ -> Right Underflow
+    BinaryOperation op -> case stackPop s of
+      Just (newStack1, y) -> case stackPop newStack1 of
+        Just (newStack2, x) -> case op x y of
+          Just newX -> Left (stackPush newStack2 newX)
+          _ -> Right Undefined
+        _ -> Right Underflow
+      _ -> Right Underflow
   where
     unpackResult result error = maybe (Right error) Left result
 
@@ -117,22 +67,35 @@ parseWord s =
     "drop" -> Just (MutateStack Drop)
     "dup" -> Just (MutateStack Duplicate)
     "swap" -> Just (MutateStack Swap)
-    "inc" -> Just (MutateStack (Calculate (Unary Increase)))
-    "dec" -> Just (MutateStack (Calculate (Unary Decrease)))
-    "sqrt" -> Just (MutateStack (Calculate (Unary SquareRoot)))
-    "sin" -> Just (MutateStack (Calculate (Unary Sine)))
-    "cos" -> Just (MutateStack (Calculate (Unary Cosine)))
-    "tan" -> Just (MutateStack (Calculate (Unary Tangent)))
-    "+" -> Just (MutateStack (Calculate (Binary Add)))
-    "-" -> Just (MutateStack (Calculate (Binary Subtract)))
-    "*" -> Just (MutateStack (Calculate (Binary Multiply)))
-    "/" -> Just (MutateStack (Calculate (Binary Divide)))
-    "^" -> Just (MutateStack (Calculate (Binary RaiseToThePower)))
+
+    "inc" -> Just (MutateStack (UnaryOperation (safeUnaryOperation inc)))
+    "dec" -> Just (MutateStack (UnaryOperation (safeUnaryOperation dec)))
+    "sin" -> Just (MutateStack (UnaryOperation (safeUnaryOperation sin)))
+    "cos" -> Just (MutateStack (UnaryOperation (safeUnaryOperation cos)))
+    "tan" -> Just (MutateStack (UnaryOperation (safeUnaryOperation tan)))
+    "sqrt" -> Just (MutateStack (UnaryOperation safeSquareRoot))
+
+    "+" -> Just (MutateStack (BinaryOperation (safeBinaryOperation (+))))
+    "-" -> Just (MutateStack (BinaryOperation (safeBinaryOperation (-))))
+    "*" -> Just (MutateStack (BinaryOperation (safeBinaryOperation (*))))
+    "^" -> Just (MutateStack (BinaryOperation (safeBinaryOperation (**))))
+    "/" -> Just (MutateStack (BinaryOperation safeDivide))
+
     "pi" -> Just (MutateStack (Enter pi))
     _ -> do
       number <- readMaybe s
       Just (MutateStack (Enter number))
-
+  where
+    safeDivide x y = if y /= 0
+                     then Just (x / y)
+                     else Nothing
+    safeSquareRoot x = if x >= 0
+                       then Just (sqrt x)
+                       else Nothing
+    safeUnaryOperation op x = Just (op x)
+    safeBinaryOperation op x y = Just (op x y)
+    inc = (+) 1
+    dec = (-) 1
 
 evalWord :: Stack Double -> String -> IO (Maybe (Stack Double))
 evalWord s w = do

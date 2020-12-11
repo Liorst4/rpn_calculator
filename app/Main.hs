@@ -165,6 +165,6 @@ repl s = do
 -- TODO Exit codes
 main :: IO ()
 main = do
-  hPutStrLn stderr "Welcome to the RPN calculator\nTo learn how to use PRN read https://en.wikipedia.org/wiki/Reverse_Polish_notation\nUse the \"help\" command to list available words."
+  hPutStrLn stderr "Welcome to the RPN calculator\nTo learn how to use RPN read https://en.wikipedia.org/wiki/Reverse_Polish_notation\nUse the \"help\" command to list available words."
   repl stackNew
   return ()

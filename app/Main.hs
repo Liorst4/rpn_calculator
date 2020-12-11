@@ -131,10 +131,11 @@ evalWords s w = case stackPop w of
        Nothing -> return Nothing
   _ -> return (Just s)
 
--- TODO: Print prompt
 -- TODO: Use side effects
 repl :: Stack Double -> IO (Maybe (Stack Double))
 repl s = do 
+      putStr "(rpn calculator) "
+      hFlush stdout
       userLine <- getLine
       let userWords = words userLine
       result <- evalWords s (listToStack userWords)

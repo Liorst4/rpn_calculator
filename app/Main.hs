@@ -100,11 +100,18 @@ parseWord s =
     inc = (+) 1
     dec = (-) 1
 
+prettyPrintStack :: Show a => Stack a -> String
+prettyPrintStack s = "size: " ++ show (stackSize s) ++ "\nitems:" ++ items s
+  where
+    items s = case stackPop s of
+      Just (s1, item) -> items s1 ++ " " ++ show item
+      _ -> ""
+
 evalWord :: Stack Double -> String -> IO (Maybe (Stack Double))
 evalWord s w = do
   case parseWord w of
     Just Print -> do
-      print s -- TODO: Better print
+      putStrLn (prettyPrintStack s)
       return (Just s)
     Just Help -> do
       putStrLn helpString

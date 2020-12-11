@@ -5,6 +5,7 @@ import Data.Maybe
 import Data.Stack
 import System.IO
 import Text.Read
+import qualified Data.Map.Strict as M
 
 data StackOperation = Enter Double
                     | Drop
@@ -60,34 +61,35 @@ data Word = Exit
           | Help
           | MutateStack StackOperation
 
-parseWord :: String -> Maybe Main.Word
-parseWord s =
-  case s of
-    "exit" -> Just Exit
-    "print" -> Just Print
-    "help" -> Just Help
+data WordTableEntry = WordTableEntry
+  { word :: Main.Word
+  , description :: String }
 
-    "drop" -> Just (MutateStack Drop)
-    "dup" -> Just (MutateStack Duplicate)
-    "swap" -> Just (MutateStack Swap)
+type WordTable = M.Map String WordTableEntry
 
-    "inc" -> Just (MutateStack (UnaryOperation (safeUnaryOperation inc)))
-    "dec" -> Just (MutateStack (UnaryOperation (safeUnaryOperation dec)))
-    "sin" -> Just (MutateStack (UnaryOperation (safeUnaryOperation sin)))
-    "cos" -> Just (MutateStack (UnaryOperation (safeUnaryOperation cos)))
-    "tan" -> Just (MutateStack (UnaryOperation (safeUnaryOperation tan)))
-    "sqrt" -> Just (MutateStack (UnaryOperation safeSquareRoot))
+interpreterWords :: WordTable
+interpreterWords = M.fromList [("exit", WordTableEntry Exit "Quits the program")
+                              ,("print", WordTableEntry Print "Print the stack")
+                              ,("help", WordTableEntry Help "Print available words")
 
-    "+" -> Just (MutateStack (BinaryOperation (safeBinaryOperation (+))))
-    "-" -> Just (MutateStack (BinaryOperation (safeBinaryOperation (-))))
-    "*" -> Just (MutateStack (BinaryOperation (safeBinaryOperation (*))))
-    "^" -> Just (MutateStack (BinaryOperation (safeBinaryOperation (**))))
-    "/" -> Just (MutateStack (BinaryOperation safeDivide))
+                              ,("drop", WordTableEntry (MutateStack Drop) "Remove top element of the stack")
+                              ,("dup", WordTableEntry (MutateStack Duplicate) "Duplicate the top element on the stack")
+                              ,("swap", WordTableEntry (MutateStack Swap) "Swap the order of the two most top elements on the stack")
 
-    "pi" -> Just (MutateStack (Enter pi))
-    _ -> do
-      number <- readMaybe s
-      Just (MutateStack (Enter number))
+                              ,("inc", WordTableEntry (MutateStack (UnaryOperation (safeUnaryOperation inc))) "Increase the value of the top element in the stack by 1")
+                              ,("dec", WordTableEntry (MutateStack (UnaryOperation (safeUnaryOperation dec))) "Decrease the value of the top element in the stack by 1")
+                              ,("sin", WordTableEntry (MutateStack (UnaryOperation (safeUnaryOperation sin))) "Sine function")
+                              ,("cos", WordTableEntry (MutateStack (UnaryOperation (safeUnaryOperation cos))) "Cosine function")
+                              ,("tan", WordTableEntry (MutateStack (UnaryOperation (safeUnaryOperation tan))) "Tangent function")
+                              ,("sqrt", WordTableEntry (MutateStack (UnaryOperation safeSquareRoot)) "Square root")
+
+                              ,("+", WordTableEntry (MutateStack (BinaryOperation (safeBinaryOperation (+)))) "Addition")
+                              ,("-", WordTableEntry (MutateStack (BinaryOperation (safeBinaryOperation (-)))) "Subtraction")
+                              ,("*", WordTableEntry (MutateStack (BinaryOperation (safeBinaryOperation (*)))) "Multiplication")
+                              ,("^", WordTableEntry (MutateStack (BinaryOperation (safeBinaryOperation (**)))) "Raise to the power")
+                              ,("/", WordTableEntry (MutateStack (BinaryOperation safeDivide)) "Divide")
+
+                              ,("pi", WordTableEntry (MutateStack (Enter pi)) "π")]
   where
     safeDivide x y = if y /= 0
                      then Just (x / y)
@@ -100,6 +102,14 @@ parseWord s =
     inc = (+) 1
     dec = (-) 1
 
+parseWord :: String -> WordTable -> Maybe Main.Word
+parseWord s table =
+  case M.lookup s table of
+    Just entry -> Just (word entry)
+    _ -> do
+      number <- readMaybe s
+      Just (MutateStack (Enter number))
+
 prettyPrintStack :: Show a => Stack a -> String
 prettyPrintStack s = "size: " ++ show (stackSize s) ++ "\nitems:" ++ items s
   where
@@ -107,9 +117,9 @@ prettyPrintStack s = "size: " ++ show (stackSize s) ++ "\nitems:" ++ items s
       Just (s1, item) -> items s1 ++ " " ++ show item
       _ -> ""
 
-evalWord :: Stack Double -> String -> IO (Maybe (Stack Double))
-evalWord s w = do
-  case parseWord w of
+evalWord :: Stack Double -> String -> WordTable -> IO (Maybe (Stack Double))
+evalWord s w t = do
+  case parseWord w t of
     Just Print -> do
       putStrLn (prettyPrintStack s)
       return (Just s)
@@ -126,15 +136,14 @@ evalWord s w = do
       hPutStrLn stderr ("Invalid command: " ++ w)
       return (Just s)
   where
-    -- TODO: Generate automatically
-    helpString = "Available words: exit, print, help, drop, dup, swap, inc, dec, sin, cos, tan, sqrt, +, -, *, ^, /, pi"
+    helpString = M.foldlWithKey (\prev key value -> prev ++ "\n" ++ key ++ "\t" ++ description value) "Available words" t
 
-evalWords :: Stack Double -> Stack String -> IO (Maybe (Stack Double))
-evalWords s w = case stackPop w of
+evalWords :: Stack Double -> Stack String -> WordTable -> IO (Maybe (Stack Double))
+evalWords s w t = case stackPop w of
   Just (restOfW, headOfW) -> do
-     result <- evalWord s headOfW
+     result <- evalWord s headOfW t
      case result of
-       Just newS -> evalWords newS restOfW
+       Just newS -> evalWords newS restOfW t
        Nothing -> return Nothing
   _ -> return (Just s)
 
@@ -145,7 +154,7 @@ repl s = do
       hFlush stdout
       userLine <- getLine
       let userWords = words userLine
-      result <- evalWords s (listToStack userWords)
+      result <- evalWords s (listToStack userWords) t
       case result of
         Just newS -> repl newS
         Nothing -> return Nothing
@@ -154,6 +163,7 @@ repl s = do
     listToStackInner s l = if null l
       then s
       else listToStackInner (stackPush s (head l)) (tail l)
+    t = interpreterWords
 
 -- TODO Exit codes
 main :: IO ()

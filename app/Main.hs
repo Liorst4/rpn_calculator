@@ -57,6 +57,7 @@ performStackOperation operation s =
 
 data Word = Exit
           | Print
+          | Help
           | MutateStack StackOperation
 
 parseWord :: String -> Maybe Main.Word
@@ -64,6 +65,8 @@ parseWord s =
   case s of
     "exit" -> Just Exit
     "print" -> Just Print
+    "help" -> Just Help
+
     "drop" -> Just (MutateStack Drop)
     "dup" -> Just (MutateStack Duplicate)
     "swap" -> Just (MutateStack Swap)
@@ -103,6 +106,9 @@ evalWord s w = do
     Just Print -> do
       print s -- TODO: Better print
       return (Just s)
+    Just Help -> do
+      putStrLn helpString
+      return (Just s)
     Just (MutateStack op) -> case performStackOperation op s of
       Left newStack -> return (Just newStack)
       Right error -> do
@@ -112,6 +118,9 @@ evalWord s w = do
     _ -> do
       hPutStrLn stderr ("Invalid command: " ++ w)
       return (Just s)
+  where
+    -- TODO: Generate automatically
+    helpString = "Available words: exit, print, help, drop, dup, swap, inc, dec, sin, cos, tan, sqrt, +, -, *, ^, /, pi"
 
 evalWords :: Stack Double -> Stack String -> IO (Maybe (Stack Double))
 evalWords s w = case stackPop w of
@@ -141,6 +150,6 @@ repl s = do
 -- TODO Exit codes
 main :: IO ()
 main = do
-  hPutStrLn stderr "Welcome to the RPN calculator\nTo learn how to use PRN read https://en.wikipedia.org/wiki/Reverse_Polish_notation"
+  hPutStrLn stderr "Welcome to the RPN calculator\nTo learn how to use PRN read https://en.wikipedia.org/wiki/Reverse_Polish_notation\nUse the \"help\" command to list available words."
   repl stackNew
   return ()

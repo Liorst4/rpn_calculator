@@ -109,10 +109,10 @@ parseWord s table =
       Just (MutateStack (Enter number))
 
 prettyPrintStack :: Show a => Stack a -> String
-prettyPrintStack s = "size: " ++ show (stackSize s) ++ "\nitems:" ++ items s
+prettyPrintStack s = "size: " ++ show (stackSize s) ++ "\nitems: " ++ items s
   where
     items s = case stackPop s of
-      Just (s1, item) -> items s1 ++ " " ++ show item
+      Just (s1, item) -> show item ++ " " ++ items s1
       _ -> ""
 
 evalWord :: Stack Double -> String -> WordTable -> IO (Maybe (Stack Double))

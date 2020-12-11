@@ -57,7 +57,6 @@ performStackOperation operation s =
     unpackResult result error = maybe (Right error) Left result
 
 data Word = Exit
-          | Print
           | Help
           | MutateStack StackOperation
 
@@ -69,7 +68,6 @@ type WordTable = M.Map String WordTableEntry
 
 interpreterWords :: WordTable
 interpreterWords = M.fromList [("exit", WordTableEntry Exit "Quits the program")
-                              ,("print", WordTableEntry Print "Print the stack")
                               ,("help", WordTableEntry Help "Print available words")
 
                               ,("drop", WordTableEntry (MutateStack Drop) "Remove top element of the stack")
@@ -120,9 +118,6 @@ prettyPrintStack s = "size: " ++ show (stackSize s) ++ "\nitems:" ++ items s
 evalWord :: Stack Double -> String -> WordTable -> IO (Maybe (Stack Double))
 evalWord s w t = do
   case parseWord w t of
-    Just Print -> do
-      putStrLn (prettyPrintStack s)
-      return (Just s)
     Just Help -> do
       putStrLn helpString
       return (Just s)
@@ -156,7 +151,9 @@ repl s = do
       let userWords = words userLine
       result <- evalWords s (listToStack userWords) t
       case result of
-        Just newS -> repl newS
+        Just newS -> do
+          putStrLn (prettyPrintStack newS)
+          repl newS
         Nothing -> return Nothing
   where
     listToStack l = listToStackInner stackNew (reverse l)

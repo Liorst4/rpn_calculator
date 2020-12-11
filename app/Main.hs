@@ -105,12 +105,12 @@ performStackOperation operation s =
   where
     unpackResult result error = maybe (Right error) Left result
 
-data UserCommand = Exit
-                 | Print
-                 | MutateStack StackOperation
+data Word = Exit
+          | Print
+          | MutateStack StackOperation
 
-parseUserCommand :: String -> Maybe UserCommand
-parseUserCommand s =
+parseWord :: String -> Maybe Main.Word
+parseWord s =
   case s of
     "exit" -> Just Exit
     "print" -> Just Print
@@ -134,10 +134,9 @@ parseUserCommand s =
       Just (MutateStack (Enter number))
 
 
-executeWord :: Stack Double -> String -> IO (Maybe (Stack Double))
-executeWord s w = do
-  let userCommand = parseUserCommand w
-  case userCommand of
+evalWord :: Stack Double -> String -> IO (Maybe (Stack Double))
+evalWord s w = do
+  case parseWord w of
     Just Print -> do
       print s -- TODO: Better print
       return (Just s)
@@ -151,12 +150,12 @@ executeWord s w = do
       hPutStrLn stderr ("Invalid command: " ++ w)
       return (Just s)
 
-executeWords :: Stack Double -> Stack String -> IO (Maybe (Stack Double))
-executeWords s w = case stackPop w of
+evalWords :: Stack Double -> Stack String -> IO (Maybe (Stack Double))
+evalWords s w = case stackPop w of
   Just (restOfW, headOfW) -> do
-     result <- executeWord s headOfW
+     result <- evalWord s headOfW
      case result of
-       Just newS -> executeWords newS restOfW
+       Just newS -> evalWords newS restOfW
        Nothing -> return Nothing
   _ -> return (Just s)
 
@@ -166,7 +165,7 @@ repl :: Stack Double -> IO (Maybe (Stack Double))
 repl s = do 
       userLine <- getLine
       let userWords = words userLine
-      result <- executeWords s (listToStack userWords)
+      result <- evalWords s (listToStack userWords)
       case result of
         Just newS -> repl newS
         Nothing -> return Nothing

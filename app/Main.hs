@@ -86,7 +86,9 @@ interpreterWords = M.fromList [("exit", WordTableEntry Exit "Quits the program")
                               ,("*", WordTableEntry (MutateStack (BinaryOperation (safeBinaryOperation (*)))) "Multiplication")
                               ,("^", WordTableEntry (MutateStack (BinaryOperation (safeBinaryOperation (**)))) "Raise to the power")
                               ,("/", WordTableEntry (MutateStack (BinaryOperation safeDivide)) "Divide")
+                              ,("log", WordTableEntry (MutateStack (BinaryOperation (safeBinaryOperation logBase))) "log function")
 
+                              ,("e", WordTableEntry (MutateStack (Enter 2.718281828459045)) "e")
                               ,("pi", WordTableEntry (MutateStack (Enter pi)) "π")]
   where
     safeDivide x y = if y /= 0

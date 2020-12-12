@@ -120,46 +120,53 @@ prettyPrintStack s = "size: " ++ show (stackSize s) ++ "\nitems: " ++ items s
       Just (s1, item) -> show item ++ " " ++ items s1
       _ -> ""
 
-evalWord :: Stack Double -> String -> WordTable -> IO (Maybe (Stack Double))
+data EvalResult = UpdatedStack (Stack Double)
+                | StackOperationError StackOperationError
+                | ExitInterpreter
+                | InvalidWord String
+
+evalWord :: Stack Double -> String -> WordTable -> IO EvalResult
 evalWord s w t = do
   case parseWord w t of
     Just Help -> do
       putStrLn helpString
-      return (Just s)
+      return (UpdatedStack s)
     Just (MutateStack op) -> case performStackOperation op s of
-      Left newStack -> return (Just newStack)
-      Right error -> do
-        hPutStrLn stderr ("Error: " ++ show error)
-        return (Just s)
-    Just Exit -> return Nothing
-    _ -> do
-      hPutStrLn stderr ("Invalid command: " ++ w)
-      return (Just s)
+      Left newStack -> return (UpdatedStack newStack)
+      Right error -> return (StackOperationError error)
+    Just Exit -> return ExitInterpreter
+    _ -> return (InvalidWord w)
   where
     helpString = M.foldlWithKey (\prev key value -> prev ++ "\n" ++ key ++ "\t" ++ description value) "Available words" t
 
-evalWords :: Stack Double -> Stack String -> WordTable -> IO (Maybe (Stack Double))
+evalWords :: Stack Double -> Stack String -> WordTable -> IO EvalResult
 evalWords s w t = case stackPop w of
   Just (restOfW, headOfW) -> do
      result <- evalWord s headOfW t
      case result of
-       Just newS -> evalWords newS restOfW t
-       Nothing -> return Nothing
-  _ -> return (Just s)
+       UpdatedStack newS -> evalWords newS restOfW t
+       _ -> return result
+  _ -> return (UpdatedStack s)
 
 -- TODO: Use side effects
-repl :: Stack Double -> IO (Maybe (Stack Double))
+repl :: Stack Double -> IO ()
 repl s = do 
       putStr "(rpn calculator) "
       hFlush stdout
-      userLine <- getLine
+      userLine <- getLine -- TODO: Gnu readline
       let userWords = words userLine
       result <- evalWords s (listToStack userWords) t
       case result of
-        Just newS -> do
+        UpdatedStack newS -> do
           putStrLn (prettyPrintStack newS)
           repl newS
-        Nothing -> return Nothing
+        InvalidWord w -> do
+          hPutStrLn stderr ("Invalid word: " ++ w)
+          repl s
+        StackOperationError e -> do
+          hPutStrLn stderr ("Error: " ++ show e)
+          repl s
+        ExitInterpreter -> return ()
   where
     listToStack l = listToStackInner stackNew (reverse l)
     listToStackInner s l = if null l

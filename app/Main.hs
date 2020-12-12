@@ -18,6 +18,9 @@ data StackOperationError = Underflow
                          | Undefined
                          deriving (Show)
 
+definedDouble :: Double -> Maybe Double
+definedDouble x = if isNaN x || isInfinite x then Nothing else Just x
+
 -- TODO Use side effect                   
 performStackOperation :: StackOperation -> Stack Double -> Either (Stack Double) StackOperationError
 performStackOperation operation s =
@@ -42,13 +45,13 @@ performStackOperation operation s =
             Just newStack4
       unpackResult result Underflow
     UnaryOperation op -> case stackPop s of
-      Just (newStack1, x) -> case op x of
+      Just (newStack1, x) -> case op x >>= definedDouble of
         Just newX -> Left (stackPush newStack1 newX)
         _ -> Right Undefined
       _ -> Right Underflow
     BinaryOperation op -> case stackPop s of
       Just (newStack1, y) -> case stackPop newStack1 of
-        Just (newStack2, x) -> case op x y of
+        Just (newStack2, x) -> case op x y >>= definedDouble of
           Just newX -> Left (stackPush newStack2 newX)
           _ -> Right Undefined
         _ -> Right Underflow
@@ -107,7 +110,7 @@ parseWord s table =
   case M.lookup s table of
     Just entry -> Just (word entry)
     _ -> do
-      number <- readMaybe s
+      number <- readMaybe s >>= definedDouble
       Just (MutateStack (Enter number))
 
 prettyPrintStack :: Show a => Stack a -> String

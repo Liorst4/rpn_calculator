@@ -22,10 +22,10 @@ definedDouble :: Double -> Maybe Double
 definedDouble x = if isNaN x || isInfinite x then Nothing else Just x
 
 -- TODO Use side effect                   
-performStackOperation :: StackOperation -> Stack Double -> Either (Stack Double) StackOperationError
+performStackOperation :: StackOperation -> Stack Double -> Either StackOperationError (Stack Double)
 performStackOperation operation s =
   case operation of
-    Enter number -> Left (stackPush s number)
+    Enter number -> return $ stackPush s number
     Drop -> stackOrUnderflow $ do
       (newStack, _) <- stackPop s
       return newStack
@@ -40,20 +40,20 @@ performStackOperation operation s =
       return newStack4
     UnaryOperation op -> case stackPop s of
       Just (newStack1, x) -> case op x >>= definedDouble of
-        Just newX -> Left (stackPush newStack1 newX)
-        _ -> Right Undefined
-      _ -> Right Underflow
+        Just newX -> Right (stackPush newStack1 newX)
+        _ -> Left Undefined
+      _ -> Left Underflow
     BinaryOperation op -> case stackPop s of
       Just (newStack1, y) -> case stackPop newStack1 of
         Just (newStack2, x) -> case op x y >>= definedDouble of
-          Just newX -> Left (stackPush newStack2 newX)
-          _ -> Right Undefined
-        _ -> Right Underflow
-      _ -> Right Underflow
+          Just newX -> Right (stackPush newStack2 newX)
+          _ -> Left Undefined
+        _ -> Left Underflow
+      _ -> Left Underflow
   where
     stackOrUnderflow maybeStack = case maybeStack of
-      Just stack -> Left stack
-      _ -> Right Underflow
+      Just stack -> Right stack
+      _ -> Left Underflow
 
 data Word = Exit
           | Help
@@ -129,8 +129,8 @@ evalWord s w t = do
       putStrLn helpString
       return (UpdatedStack s)
     Just (MutateStack op) -> case performStackOperation op s of
-      Left newStack -> return (UpdatedStack newStack)
-      Right error -> return (StackOperationError error)
+      Right newStack -> return (UpdatedStack newStack)
+      Left error -> return (StackOperationError error)
     Just Exit -> return ExitInterpreter
     _ -> return (InvalidWord w)
   where

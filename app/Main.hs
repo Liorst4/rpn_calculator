@@ -26,34 +26,33 @@ performStackOperation :: StackOperation -> Stack Double -> Either StackOperation
 performStackOperation operation s =
   case operation of
     Enter number -> return $ stackPush s number
-    Drop -> stackOrUnderflow $ do
-      (newStack, _) <- stackPop s
+    Drop -> do
+      (newStack, _) <- somethingOrUnderflow $ stackPop s
       return newStack
-    Duplicate -> stackOrUnderflow $ do
-      (_, topValue) <- stackPop s
+    Duplicate -> do
+      (_, topValue) <- somethingOrUnderflow $ stackPop s
       return (stackPush s topValue)
-    Swap -> stackOrUnderflow $ do
-      (newStack1, x) <- stackPop s
-      (newStack2, y) <- stackPop newStack1
+    Swap -> do
+      (newStack1, x) <- somethingOrUnderflow $ stackPop s
+      (newStack2, y) <- somethingOrUnderflow $ stackPop newStack1
       let newStack3 = stackPush newStack2 x
       let newStack4 = stackPush newStack3 y
       return newStack4
-    UnaryOperation op -> case stackPop s of
-      Just (newStack1, x) -> case op x >>= definedDouble of
-        Just newX -> Right (stackPush newStack1 newX)
-        _ -> Left Undefined
-      _ -> Left Underflow
-    BinaryOperation op -> case stackPop s of
-      Just (newStack1, y) -> case stackPop newStack1 of
-        Just (newStack2, x) -> case op x y >>= definedDouble of
-          Just newX -> Right (stackPush newStack2 newX)
-          _ -> Left Undefined
-        _ -> Left Underflow
-      _ -> Left Underflow
+    UnaryOperation op -> do
+      (newStack1, x) <- somethingOrUnderflow $ stackPop s
+      newX <- somethingOrUndefined $ op x >>= definedDouble
+      return $ stackPush newStack1 newX
+    BinaryOperation op -> do
+      (newStack1, y) <- somethingOrUnderflow $ stackPop s
+      (newStack2, x) <- somethingOrUnderflow $ stackPop newStack1
+      newX <- somethingOrUndefined $ op x y >>= definedDouble
+      return $ stackPush newStack2 newX
   where
-    stackOrUnderflow maybeStack = case maybeStack of
-      Just stack -> Right stack
-      _ -> Left Underflow
+    maybeToResult maybeValue errorOnNothing = case maybeValue of
+      Just value -> Right value
+      _ -> Left errorOnNothing
+    somethingOrUnderflow x = maybeToResult x Underflow
+    somethingOrUndefined x = maybeToResult x Undefined
 
 data Word = Exit
           | Help

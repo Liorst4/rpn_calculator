@@ -29,12 +29,12 @@ performStackOperation operation s =
     Drop -> do
       let result = do
             (newStack, _) <- stackPop s
-            Just newStack
+            return newStack
       unpackResult result Underflow
     Duplicate -> do
       let result = do
             (_, topValue) <- stackPop s
-            Just (stackPush s topValue)
+            return (stackPush s topValue)
       unpackResult result Underflow
     Swap -> do
       let result = do
@@ -42,7 +42,7 @@ performStackOperation operation s =
             (newStack2, y) <- stackPop newStack1
             let newStack3 = stackPush newStack2 x
             let newStack4 = stackPush newStack3 y
-            Just newStack4
+            return newStack4
       unpackResult result Underflow
     UnaryOperation op -> case stackPop s of
       Just (newStack1, x) -> case op x >>= definedDouble of

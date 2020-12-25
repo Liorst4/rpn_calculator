@@ -110,8 +110,9 @@ parseWord s table =
   case M.lookup s table of
     Just entry -> return $ word entry
     _ -> do
-      number <- readMaybe s >>= definedDouble
-      return $ MutateStack $ Enter number
+      number <- readMaybe s
+      safeNumber <- definedDouble number
+      return $ MutateStack $ Enter safeNumber
 
 prettyPrintStack :: Show a => Stack a -> String
 prettyPrintStack s = "size: " ++ show (stackSize s) ++ "\nitems: " ++ items s

@@ -26,24 +26,18 @@ performStackOperation :: StackOperation -> Stack Double -> Either (Stack Double)
 performStackOperation operation s =
   case operation of
     Enter number -> Left (stackPush s number)
-    Drop -> do
-      let result = do
-            (newStack, _) <- stackPop s
-            return newStack
-      unpackResult result Underflow
-    Duplicate -> do
-      let result = do
-            (_, topValue) <- stackPop s
-            return (stackPush s topValue)
-      unpackResult result Underflow
-    Swap -> do
-      let result = do
-            (newStack1, x) <- stackPop s
-            (newStack2, y) <- stackPop newStack1
-            let newStack3 = stackPush newStack2 x
-            let newStack4 = stackPush newStack3 y
-            return newStack4
-      unpackResult result Underflow
+    Drop -> stackOrUnderflow $ do
+      (newStack, _) <- stackPop s
+      return newStack
+    Duplicate -> stackOrUnderflow $ do
+      (_, topValue) <- stackPop s
+      return (stackPush s topValue)
+    Swap -> stackOrUnderflow $ do
+      (newStack1, x) <- stackPop s
+      (newStack2, y) <- stackPop newStack1
+      let newStack3 = stackPush newStack2 x
+      let newStack4 = stackPush newStack3 y
+      return newStack4
     UnaryOperation op -> case stackPop s of
       Just (newStack1, x) -> case op x >>= definedDouble of
         Just newX -> Left (stackPush newStack1 newX)
@@ -57,7 +51,9 @@ performStackOperation operation s =
         _ -> Right Underflow
       _ -> Right Underflow
   where
-    unpackResult result error = maybe (Right error) Left result
+    stackOrUnderflow maybeStack = case maybeStack of
+      Just stack -> Left stack
+      _ -> Right Underflow
 
 data Word = Exit
           | Help

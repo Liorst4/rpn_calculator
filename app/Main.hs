@@ -108,10 +108,10 @@ interpreterWords = M.fromList [("exit", WordTableEntry Exit "Quits the program")
 parseWord :: String -> WordTable -> Maybe Main.Word
 parseWord s table =
   case M.lookup s table of
-    Just entry -> Just (word entry)
+    Just entry -> return $ word entry
     _ -> do
       number <- readMaybe s >>= definedDouble
-      Just (MutateStack (Enter number))
+      return $ MutateStack $ Enter number
 
 prettyPrintStack :: Show a => Stack a -> String
 prettyPrintStack s = "size: " ++ show (stackSize s) ++ "\nitems: " ++ items s

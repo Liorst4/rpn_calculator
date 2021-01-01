@@ -13,6 +13,7 @@ data StackOperation = Enter Double
                     | Swap
                     | UnaryOperation (Double -> Maybe Double)
                     | BinaryOperation (Double -> Double -> Maybe Double)
+                    | Clear
 
 data StackOperationError = Underflow
                          | Undefined
@@ -47,6 +48,7 @@ performStackOperation operation s =
       (newStack2, x) <- somethingOrUnderflow $ stackPop newStack1
       newX <- somethingOrUndefined $ op x y >>= definedDouble
       return $ stackPush newStack2 newX
+    Clear -> return stackNew
   where
     maybeToResult maybeValue errorOnNothing = case maybeValue of
       Just value -> Right value
@@ -71,6 +73,7 @@ interpreterWords = M.fromList [("exit", WordTableEntry Exit "Quits the program")
                               ,("drop", WordTableEntry (MutateStack Drop) "Remove top element of the stack")
                               ,("dup", WordTableEntry (MutateStack Duplicate) "Duplicate the top element on the stack")
                               ,("swap", WordTableEntry (MutateStack Swap) "Swap the order of the two most top elements on the stack")
+                              ,("clear", WordTableEntry (MutateStack Clear) "Remove all items from the stack")
 
                               ,("inc", WordTableEntry (MutateStack (UnaryOperation (safeUnaryOperation inc))) "Increase the value of the top element in the stack by 1")
                               ,("dec", WordTableEntry (MutateStack (UnaryOperation (safeUnaryOperation dec))) "Decrease the value of the top element in the stack by 1")
